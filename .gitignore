@@ -1,0 +1,8 @@
+*.o
+*.swp
+*.er
+.project
+.cproject
+.settings
+Debug
+hull

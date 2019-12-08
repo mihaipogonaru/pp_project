@@ -243,6 +243,8 @@ int main(int argc, char **argv)
     file = argv[1];
     if (argc == 3) {
         int points_length = atoi(argv[2]);
+        points_length += 3360 - (points_length % 3360);
+        cout << "Rounded number of points to " << points_length << " (multiple of 3360)" << endl;
         generate_random_points(points_length, file);
     } else {
         read_points(points, file);

@@ -1,6 +1,8 @@
 *.o
 *.swp
 *.er
+*.in
+*.log
 .project
 .cproject
 .settings

@@ -123,13 +123,13 @@ void quick_hull_helper(vector<Point> &points, Point const& point_min, Point cons
         return;
 
     results.push_back(*pu);
-    points.erase(
+    /*points.erase(
             std::remove_if(
                     points.begin(), points.end(),
                     [=](Point const& point) -> bool {
                         return point_is_in_triangle(point, *pu, point_min, point_max);
                     }),
-            points.end());
+            points.end());*/
 
     quick_hull_helper(points, *pu, point_min, -find_side_of_point(*pu, point_min, point_max));
     quick_hull_helper(points, *pu, point_max, -find_side_of_point(*pu, point_max, point_min));

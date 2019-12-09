@@ -19,8 +19,8 @@ bool Point::operator==(const Point &other) const
 bool Point::operator<(const Point &other) const 
 {
     if (x == other.x)
-       return y < other.y;
-    return x < other.x;
+       return y - other.y < 0;
+    return x - other.x < 0;
 }
 
 double Point::distance_to_line(Line const& line) const
@@ -52,11 +52,11 @@ double get_distance_between_point_and_line(Point const& p, Point const& p1, Poin
 { 
     Line line(p1, p2);
     return p.distance_to_line(line);
-} 
+}
 
-int find_side_of_point(Point const& p, Point const& p1, Point const& p2)
-{ 
-    long long val = (p.x - p1.x) * (p2.y - p1.y) -
+static inline int find_side_of_point(Point const& p, Point const& p1, Point const& p2)
+{
+    double val = (p.x - p1.x) * (p2.y - p1.y) -
                     (p.y - p1.y) * (p2.x - p1.x);
 
     if (val > 0)
@@ -93,7 +93,7 @@ Point* get_farthest_point(vector<Point> &points, Point const& point_min, Point c
     return NULL;
 }
 
-double sign(Point const& p1, Point const& p2, Point const& p3)
+static inline double sign(Point const& p1, Point const& p2, Point const& p3)
 {
     return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
 }
@@ -111,6 +111,71 @@ bool point_is_in_triangle(Point const& point, Point const& p1, Point const& p2, 
     has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
 
     return !(has_neg && has_pos);
+}
+
+static inline double sign(CPoint const& p1, CPoint const& p2, CPoint const& p3)
+{
+    return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+}
+
+bool point_is_in_triangle(struct CPoint const& point, struct CPoint const& p1,
+                          struct CPoint const& p2, struct CPoint const& p3)
+{
+    double d1, d2, d3;
+    bool has_neg, has_pos;
+
+    d1 = sign(point, p1, p2);
+    d2 = sign(point, p2, p3);
+    d3 = sign(point, p3, p1);
+
+    has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+    has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+
+    return !(has_neg && has_pos);
+}
+
+bool eql_cpoint(struct CPoint const &p1, struct CPoint const &p2)
+{
+    return p1.x == p2.x && p1.y == p2.y;
+}
+
+void remove_points_in_triangle(struct CPoint *points, long *points_nr,
+        struct CPoint p1, struct CPoint p2, struct CPoint p3)
+{
+    if (*points_nr == 0)
+        return;
+
+    vector<struct CPoint> vp(points, points + *points_nr);
+
+    vp.erase(
+            std::remove_if(
+                    vp.begin(), vp.end(),
+                    [=](CPoint const& p) -> bool {
+                        return point_is_in_triangle(p, p1, p2, p3);
+                    }),
+            vp.end());
+
+    std::copy(vp.begin(), vp.end(), points);
+    *points_nr = vp.size();
+}
+
+void remove_points_min_max(struct CPoint *points, long *points_nr, double min, double max)
+{
+    if (*points_nr == 0)
+           return;
+
+   vector<struct CPoint> vp(points, points + *points_nr);
+
+   vp.erase(
+           std::remove_if(
+                   vp.begin(), vp.end(),
+                   [=](CPoint const& p) -> bool {
+                       return p.x == min || p.x == max;
+                   }),
+           vp.end());
+
+   std::copy(vp.begin(), vp.end(), points);
+   *points_nr = vp.size();
 }
 
 void quick_hull_helper(vector<Point> &points, Point const& point_min, Point const& point_max)
@@ -165,19 +230,19 @@ void quick_hull_helper(vector<Point> &points, Point const& point_min, Point cons
 
 void quick_hull(vector<Point> &points)
 {
-    long long x_min = numeric_limits<long long>::max();
-    long long x_max = numeric_limits<long long>::min();
+    double x_min = numeric_limits<double>::max();
+    double x_max = numeric_limits<double>::min();
 
     Point point_min;
     Point point_max;
 
     for (Point const& point : points) {
-        if (point.x < x_min) {
+        if (point.x - x_min < 0) {
             x_min = point.x;
             point_min = point;
         }
 
-        if (point.x > x_max) {
+        if (point.x - x_max < 0) {
             x_max = point.x;
             point_max = point;
         }
@@ -209,7 +274,7 @@ void print_points(struct CPoint const *cpoints, size_t len)
 
 void generate_random_points(unsigned points_length, string file)
 {
-    long long x, y;
+    double x, y;
     ofstream f(file);
     set<Point> points;
 

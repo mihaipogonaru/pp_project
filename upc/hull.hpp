@@ -6,10 +6,13 @@ extern "C" {
 #endif
 
 struct CPoint {
-    long long x, y;
+    double x, y;
 };
 
-void print_points(struct CPoint const *cpoints, size_t len);
+void remove_points_in_triangle(struct CPoint *points, long *points_nr,
+        struct CPoint p1, struct CPoint p2, struct CPoint p3);
+
+void remove_points_min_max(struct CPoint *points, long *points_nr, double min, double max);
 
 #ifdef __cplusplus
 }
@@ -23,10 +26,10 @@ void print_points(struct CPoint const *cpoints, size_t len);
 struct Line;
 
 struct Point {
-    long long x, y;
+    double x, y;
 
     Point(): x(0), y(0) {}
-    Point(long long x, long long y) : x(x), y(y) {}
+    Point(double x, double y) : x(x), y(y) {}
     Point(CPoint const& cpoint): x(cpoint.x), y(cpoint.y) {}
     Point& operator=(Point const &other) = default;
 
@@ -37,7 +40,7 @@ struct Point {
 };
 
 struct Line {
-    long long a, b, c; // a*x + b*y + c
+    double a, b, c; // a*x + b*y + c
     Line (Point const& p1, Point const& p2);
 };
 #endif /* __cplusplus */

@@ -181,7 +181,7 @@ void print_points(vector<Point> &points)
 
 void generate_random_points(unsigned points_length, string file)
 {
-    double x, y;
+    int x, y;
     ofstream f(file);
     set<Point> points;
 
@@ -220,6 +220,7 @@ int main(int argc, char **argv)
         points_length += 3360 - (points_length % 3360);
         cout << "Rounded number of points to " << points_length << " (multiple of 3360)" << endl;
         generate_random_points(points_length, file);
+        return 0;
     } else {
         read_points(points, file);
     }

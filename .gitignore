@@ -8,3 +8,6 @@
 .settings
 Debug
 hull
+hull_fixed
+hull_pthread-link
+hull_fixed_pthread-link

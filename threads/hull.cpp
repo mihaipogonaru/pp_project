@@ -19,13 +19,13 @@ bool Point::operator==(const Point &other) const
 bool Point::operator<(const Point &other) const 
 {
     if (x == other.x)
-       return y < other.y;
-    return x < other.x;
+       return y - other.y < 0;
+    return x - other.x < 0;
 }
 
 double Point::distance_to_line(Line const& line) const
 {
-    double point = abs(line.a * x + line.b * y + line.c);
+    double point = fabs(line.a * x + line.b * y + line.c);
     return point / sqrt(line.a * line.a + line.b * line.b);
 } 
 
@@ -49,15 +49,15 @@ Line::Line (Point const& p1, Point const& p2)
 vector<Point> results;
 
 double get_distance_between_point_and_line(Point const& p, Point const& p1, Point const& p2)
-{ 
+{
     Line line(p1, p2);
     return p.distance_to_line(line);
-} 
+}
 
 int find_side_of_point(Point const& p, Point const& p1, Point const& p2)
 { 
-    long long val = (p.x - p1.x) * (p2.y - p1.y) -
-                    (p.y - p1.y) * (p2.x - p1.x);
+    double val = (p.x - p1.x) * (p2.y - p1.y) -
+                 (p.y - p1.y) * (p2.x - p1.x);
 
     if (val > 0)
         return UP;
@@ -80,7 +80,7 @@ Point* get_farthest_point(vector<Point> &points, Point const& point_min, Point c
         double distance =
                 get_distance_between_point_and_line(point, point_min, point_max);
 
-        if (distance > max_distance) {
+        if (distance - max_distance > 0) {
             max_distance = distance;
             *farthest_point = point;
         }
@@ -113,101 +113,75 @@ bool point_is_in_triangle(Point const& point, Point const& p1, Point const& p2, 
     return !(has_neg && has_pos);
 }
 
-void quick_hull_helper(vector<Point> &points, Point const& point_min, Point const& point_max)
+void quick_hull_helper(vector<Point> &points, Point const& point_min, Point const& point_max, int side)
 {
     if (points.empty())
         return;
 
-    Point *pu = get_farthest_point(points, point_min, point_max, UP);
-    Point *pb = get_farthest_point(points, point_min, point_max, DOWN);
-
-    if (pu != NULL) {
-        results.push_back(*pu);
-
-        points.erase(
-                std::remove_if(
-                        points.begin(), points.end(),
-                        [=](Point const& point) -> bool {
-                            return point == *pu ||
-                                    point_is_in_triangle(point, *pu, point_min, point_max);
-                        }),
-                points.end());
-    }
-
-    if (pb != NULL) {
-        results.push_back(*pb);
-
-        points.erase(
-                std::remove_if(
-                        points.begin(), points.end(),
-                        [=](Point const& point) -> bool {
-                            return point == *pb ||
-                                    point_is_in_triangle(point, *pb, point_min, point_max);
-                        }),
-                points.end());
-    }
-
-    if (points.empty())
+    Point *pu = get_farthest_point(points, point_min, point_max, side);
+    if (pu == NULL)
         return;
 
-    if (pu != NULL) {
-        quick_hull_helper(points, *pu, point_min);
-        quick_hull_helper(points, *pu, point_max);
-        delete pu;
-    }
+    results.push_back(*pu);
+    points.erase(
+            std::remove_if(
+                    points.begin(), points.end(),
+                    [=](Point const& point) -> bool {
+                        return point_is_in_triangle(point, *pu, point_min, point_max);
+                    }),
+            points.end());
 
-    if (pb != NULL) {
-        quick_hull_helper(points, *pb, point_min);
-        quick_hull_helper(points, *pb, point_max);
-        delete pb;
-    }
+    quick_hull_helper(points, *pu, point_min, -find_side_of_point(*pu, point_min, point_max));
+    quick_hull_helper(points, *pu, point_max, -find_side_of_point(*pu, point_max, point_min));
+    delete pu;
 }
 
 void quick_hull(vector<Point> &points)
 {
-    long long x_min = numeric_limits<long long>::max();
-    long long x_max = numeric_limits<long long>::min();
+    double x_min = numeric_limits<double>::max();
+    double x_max = numeric_limits<double>::min();
 
     Point point_min;
     Point point_max;
 
     for (Point const& point : points) {
-        if (point.x < x_min) {
+        if (point.x - x_min < 0) {
             x_min = point.x;
             point_min = point;
         }
 
-        if (point.x > x_max) {
+        if (point.x - x_max > 0) {
             x_max = point.x;
             point_max = point;
         }
     }
 
-    std::copy_if(points.begin(), points.end(), std::back_inserter(results),
-            [=](Point const& point) -> bool {
-                return point.x == x_max || point.x == x_min;
-            });
-
-    points.erase(
+    results.push_back(point_min);
+    results.push_back(point_max);
+    /*points.erase(
             std::remove_if(
                     points.begin(), points.end(),
                     [=](Point const& point) -> bool {
-                        return point.x == x_max || point.x == x_min;
+                        return point == point_max || point == point_min;
                     }),
-            points.end());
+            points.end());*/
 
-    quick_hull_helper(points, point_min, point_max);
+    quick_hull_helper(points, point_min, point_max, UP);
+    quick_hull_helper(points, point_min, point_max, DOWN);
 }
 
 void print_points(vector<Point> &points)
 {
+    //cout << points.size() << endl;
+    cout.setf(ios::fixed,ios::floatfield);
+    cout.precision(6);
     for (Point const& point : points)
         cout << point << endl;
 }
 
 void generate_random_points(unsigned points_length, string file)
 {
-    long long x, y;
+    double x, y;
     ofstream f(file);
     set<Point> points;
 

@@ -11,6 +11,8 @@
 #include "tbb/tbb.h"
 #include "hull.h"
 
+#define NUM_THREADS 24
+
 using namespace std; 
 
 bool Point::operator==(const Point &other) const
@@ -151,6 +153,8 @@ void quick_hull(vector<Point> &points)
     Point point_min;
     Point point_max;
 
+    tbb::task_scheduler_init init(NUM_THREADS);
+
     point_min = tbb::parallel_reduce(
             tbb::blocked_range<int>(0, points.size()),
             Point(numeric_limits<double>::max(), 0),
@@ -201,7 +205,7 @@ void quick_hull(vector<Point> &points)
 
 void print_points(vector<Point> &points)
 {
-    
+
     cout.setf(ios::fixed,ios::floatfield);
     cout.precision(6);
     for (Point const& point : points)
@@ -210,7 +214,7 @@ void print_points(vector<Point> &points)
 
 void generate_random_points(unsigned points_length, string file)
 {
-    double x, y;
+    int x, y;
     ofstream f(file);
     set<Point> points;
 

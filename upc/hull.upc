@@ -20,7 +20,8 @@ shared long points_nr[THREADS];
 shared [] struct CPoint * shared points[THREADS];
 
 /* Up/down points per th (the points exchanged at each iteration) */
-shared [] struct CPoint * shared points_ud[THREADS][2];
+shared [2] int points_ud_valid[THREADS][2];
+shared [2] struct CPoint points_ud[THREADS][2];
 
 size_t result_nr;
 struct CPoint result[2000];
@@ -118,8 +119,8 @@ static void compute_min_max_point()
             max = i;
     }
 
-    points_ud[MYTHREAD][DOWN_I] = &points[MYTHREAD][min];
-    points_ud[MYTHREAD][UP_I] = &points[MYTHREAD][max];
+    points_ud[MYTHREAD][DOWN_I] = points[MYTHREAD][min];
+    points_ud[MYTHREAD][UP_I] = points[MYTHREAD][max];
 }
 
 static void compute_global_min_max()
@@ -138,19 +139,11 @@ static void compute_global_min_max()
     }*/
 
     for (i = 1; i < THREADS; ++i) {
-        if (points_ud[i][DOWN_I] != NULL) {
-            if (points_ud[MAIN][DOWN_I] == NULL)
-                points_ud[MAIN][DOWN_I] = points_ud[i][DOWN_I];
-            else if (points_ud[i][DOWN_I]->x - points_ud[MAIN][DOWN_I]->x < 0)
-                points_ud[MAIN][DOWN_I] = points_ud[i][DOWN_I];
-        }
-        
-        if (points_ud[i][UP_I] != NULL) {
-            if (points_ud[MAIN][UP_I] == NULL)
-                points_ud[MAIN][UP_I] = points_ud[i][UP_I];
-            else if (points_ud[i][UP_I]->x - points_ud[MAIN][UP_I]->x > 0)
-                points_ud[MAIN][UP_I] = points_ud[i][UP_I];
-        }
+        if (points_ud[i][DOWN_I].x - points_ud[MAIN][DOWN_I].x < 0)
+            points_ud[MAIN][DOWN_I] = points_ud[i][DOWN_I];
+
+        if (points_ud[i][UP_I].x - points_ud[MAIN][UP_I].x > 0)
+            points_ud[MAIN][UP_I] = points_ud[i][UP_I];
     }
     
     /*if (points_ud[MAIN][0])
@@ -215,22 +208,26 @@ static void get_farthest_points(struct CPoint min, struct CPoint max)
         }
     }
 
-    if (max_distance[DOWN_I] > 0) 
-        points_ud[MYTHREAD][DOWN_I] = &points[MYTHREAD][index[DOWN_I]];
-    else
-        points_ud[MYTHREAD][DOWN_I] = NULL;
-        
-    if (max_distance[UP_I] > 0) 
-        points_ud[MYTHREAD][UP_I] = &points[MYTHREAD][index[UP_I]];
-    else
-        points_ud[MYTHREAD][UP_I] = NULL;
+    if (max_distance[DOWN_I] > 0) {
+        points_ud[MYTHREAD][DOWN_I] = points[MYTHREAD][index[DOWN_I]];
+        points_ud_valid[MYTHREAD][DOWN_I] = 1;
+    } else {
+        points_ud_valid[MYTHREAD][DOWN_I] = 0;
+    }
+
+    if (max_distance[UP_I] > 0) {
+        points_ud[MYTHREAD][UP_I] = points[MYTHREAD][index[UP_I]];
+        points_ud_valid[MYTHREAD][UP_I] = 1;
+    } else {
+        points_ud_valid[MYTHREAD][UP_I] = 0;
+    }
 }
 
 static void get_global_farthest_points(struct CPoint min, struct CPoint max)
 {
     int i, j, index[2];
     double distance, max_distance[2];
-    
+
     index[DOWN_I] = index[UP_I] = 0;
     max_distance[DOWN_I] = max_distance[UP_I] = 0;
 
@@ -239,18 +236,18 @@ static void get_global_farthest_points(struct CPoint min, struct CPoint max)
         for (j = 0; j < points_nr[i]; ++j)
             printf("(%lf %lf) ", points[i][j].x, points[i][j].y);
         printf("\n");
-        if (points_ud[i][0])
-            printf("(%lf %lf)\n", points_ud[i][0]->x, points_ud[i][0]->y);
-        if (points_ud[i][1])
-            printf("(%lf %lf)\n", points_ud[i][1]->x, points_ud[i][1]->y);
+        if (points_ud_valid[i][0] == 1)
+            printf("(%lf %lf)\n", points_ud[i][0].x, points_ud[i][0].y);
+        if (points_ud_valid[i][1] == 1)
+            printf("(%lf %lf)\n", points_ud[i][1].x, points_ud[i][1].y);
     }*/
 
     for (i = 0; i < THREADS; ++i) {
         for (j = DOWN_I; j<= UP_I; ++j) {
-            if (points_ud[i][j]) {
-                distance = get_distance_between_point_and_line(*points_ud[i][j],
+            if (points_ud_valid[i][j] == 1) {
+                distance = get_distance_between_point_and_line(points_ud[i][j],
                                                                min, max);
-    
+
                 if (distance - max_distance[j] > 0) {
                     max_distance[j] = distance;
                     index[j] = i;
@@ -259,20 +256,24 @@ static void get_global_farthest_points(struct CPoint min, struct CPoint max)
         }
     }
 
-    if (max_distance[DOWN_I] > 0) 
+    if (max_distance[DOWN_I] > 0) {
         points_ud[MAIN][DOWN_I] = points_ud[index[DOWN_I]][DOWN_I];
-    else
-        points_ud[MAIN][DOWN_I] = NULL;
-        
-    if (max_distance[UP_I] > 0) 
+        points_ud_valid[MAIN][DOWN_I] = 1;
+    } else {
+        points_ud_valid[MAIN][DOWN_I] = 0;
+    }
+
+    if (max_distance[UP_I] > 0) {
         points_ud[MAIN][UP_I] = points_ud[index[UP_I]][UP_I];
-    else
-        points_ud[MAIN][UP_I] = NULL;
-        
-    /*if (points_ud[MAIN][0])
-        printf("(%lf %lf)\n", points_ud[MAIN][0]->x, points_ud[MAIN][0]->y);
-    if (points_ud[MAIN][1])
-        printf("(%lf %lf)\n", points_ud[MAIN][1]->x, points_ud[MAIN][1]->y);*/
+        points_ud_valid[MAIN][UP_I] = 1;
+    } else {
+        points_ud_valid[MAIN][UP_I] = 0;
+    }
+
+    /*if (points_ud_valid[MAIN][0])
+        printf("(%lf %lf)\n", points_ud[MAIN][0].x, points_ud[MAIN][0].y);
+    if (points_ud_valid[MAIN][1])
+        printf("(%lf %lf)\n", points_ud[MAIN][1].x, points_ud[MAIN][1].y);*/
 }
 
 static void quickhull_helper(struct CPoint min, struct CPoint max, int side)
@@ -288,18 +289,18 @@ static void quickhull_helper(struct CPoint min, struct CPoint max, int side)
     upc_barrier;
     
     sidei = side == DOWN ? DOWN_I : UP_I;
-    if (points_ud[MAIN][sidei] == NULL) {
+    if (points_ud_valid[MAIN][sidei] == 0) {
         upc_barrier;
         return;
     }
+    point = points_ud[MAIN][sidei];
     upc_barrier;
 
-    point = *points_ud[MAIN][sidei];
     if (MYTHREAD == MAIN)
         add_result(point);
 
     /*remove_points_in_triangle((struct CPoint *) points[MYTHREAD], (long *) &points_nr[MYTHREAD],
-                              point, min, max);*/
+                                point, min, max);*/
 
     quickhull_helper(point, min, -find_side_of_point(point, min, max));
     quickhull_helper(point, max, -find_side_of_point(point, max, min));
@@ -314,31 +315,54 @@ static void quickhull()
 
     if (MYTHREAD == MAIN) {
         compute_global_min_max();
-        add_result(*points_ud[MAIN][DOWN_I]);
-        add_result(*points_ud[MAIN][UP_I]);
+        add_result(points_ud[MAIN][DOWN_I]);
+        add_result(points_ud[MAIN][UP_I]);
 
         /*printf("%lf %lf : %lf %lf\n",
-                points_ud[MYTHREAD][0]->x,
-                points_ud[MYTHREAD][0]->y,
-                points_ud[MYTHREAD][1]->x,
-                points_ud[MYTHREAD][1]->y);*/
+                points_ud[MYTHREAD][0].x,
+                points_ud[MYTHREAD][0].y,
+                points_ud[MYTHREAD][1].x,
+                points_ud[MYTHREAD][1].y);*/
     }
     upc_barrier;
     
-    min = *points_ud[MAIN][DOWN_I];
-    max = *points_ud[MAIN][UP_I];
+    min = points_ud[MAIN][DOWN_I];
+    max = points_ud[MAIN][UP_I];
     upc_barrier;
 
     quickhull_helper(min, max, UP);
     quickhull_helper(min, max, DOWN);
 }
 
-int main(int argc, char *argv[])
+void check_afinity()
 {
     int i;
 
-    printf("Hello from thread %i/%i %lu\n", MYTHREAD, THREADS, UPC_MAX_BLOCK_SIZE);
+    printf("%lu: Checking %lu points\n", MYTHREAD, points_nr[MYTHREAD]);
+    for (i = 0; i < points_nr[MYTHREAD]; ++i) {
+        if (upc_threadof(&points[MYTHREAD][i]) != MYTHREAD) {
+            printf("ERR %lu: %d\n", MYTHREAD, i);
+            print_err_exit("check_afinity() ERR\n");
+        }
+    }
     
+    for (i = DOWN_I; i <= UP_I; ++i) {
+        if (upc_threadof(&points_ud[MYTHREAD][i]) != MYTHREAD) {
+            printf("ERR points_ud %lu: %d\n", MYTHREAD, i);
+            print_err_exit("check_afinity() ERR\n");
+        }
+        if (upc_threadof(&points_ud_valid[MYTHREAD][i]) != MYTHREAD) {
+            printf("ERR points_ud_valid %lu, %d\n", MYTHREAD, i);
+            print_err_exit("check_afinity() ERR\n");
+        }
+    }
+}
+
+int main(int argc, char *argv[])
+{
+    //int i;
+
+    printf("Hello from thread %i/%i %lu\n", MYTHREAD, THREADS, UPC_MAX_BLOCK_SIZE);
     if (argc != 2) {
         if (MYTHREAD == MAIN)
             print_err_exit("Please provide the input file\n");
@@ -360,7 +384,7 @@ int main(int argc, char *argv[])
     if (MYTHREAD == MAIN) {
         if (read_points_and_send(argv[1]))
             print_err_exit("Error reading points\n");
-        printf("Read %lu points\n", points_size);
+        printf("Read %lu points - %lu points per thread\n", points_size, points_per_th);
     }
     upc_barrier;
 
@@ -372,11 +396,12 @@ int main(int argc, char *argv[])
         points_per_th);
 
     for (i = 0; i < points_per_th; ++i)
-        printf("%lu (%d): %lu\n", MYTHREAD, i, upc_threadof(&points[MYTHREAD][i]));*/
+        printf("%lu (%d): %lu\n", MYTHREAD, i, upc_threadof(&points[MYTHREAD][i]));
+    */
 
     upc_barrier;
-
     quickhull();
+
     upc_barrier;
     upc_free(points[MYTHREAD]);
 

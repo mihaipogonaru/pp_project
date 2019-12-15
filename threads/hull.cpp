@@ -50,8 +50,11 @@ vector<Point> results;
 
 double get_distance_between_point_and_line(Point const& p, Point const& p1, Point const& p2)
 {
-    Line line(p1, p2);
-    return p.distance_to_line(line);
+    /*Line line(p1, p2);
+    return p.distance_to_line(line);*/
+
+    return fabs((p.x - p1.x) * (p2.y - p1.y) -
+                (p.y - p1.y) * (p2.x - p1.x));
 }
 
 int find_side_of_point(Point const& p, Point const& p1, Point const& p2)

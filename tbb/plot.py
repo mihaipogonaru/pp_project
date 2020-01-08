@@ -32,7 +32,7 @@ line_x.append(line_x[0])
 line_y.append(line_y[0])
 plt.plot(x, y, 'ro')
 plt.plot(line_x, line_y, 'ro-')
-plt.axis([0, 200, 0, 200])
+plt.axis([0, 1000, 0, 1000])
 plt.show()
 
 
